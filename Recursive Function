@@ -1,0 +1,447 @@
+TITLE Homework4     (Homework4.asm)
+; Author:	Jackson Wright
+; Course / Project ID   CS 271              Date: 3/6/20
+; Description: This program calculates the sum and average of 5 decimal or integers, depending on their selections.
+; This program will repeate until the user wants to stop
+
+;**EC Description**
+;I chose to do the extra credit for printing the numbers in columns and by using a recursive function for the sorting
+;More will be shown when the program is ran 
+
+INCLUDE Irvine32.inc
+
+;CONSTANTS (Max/Min size of array, Max/Min random number)-----------------------------
+MIN_INPUT = 10
+MAX_INPUT = 200
+RAND_MIN = 100
+RAND_MAX = 900
+
+.data											;Note that I use the divisor variable because their is no way to use fdiv without storing 5 in a memory location
+arr_size    DWORD   ?
+list        DWORD   MAX_INPUT    DUP(?)
+space       BYTE    " ",0
+welcome		BYTE	"Hello, this is the array sorting program and my name is Jackson",0
+description	BYTE	"This program will generate 10-200 random numbers put them in an array then sort them",0
+byebye		BYTE	"Thank you for trying my program, goodbye ",0
+size_promp  BYTE    "How big would you like your array to be (int 10 - 200): ",0
+calc_avg    BYTE    "The average of your numbers is ",0
+calc_medi   BYTE    " and the median is ",0
+sorted      BYTE    "Sorted List: ", 0
+unsorted    BYTE    "Unsorted List: ", 0
+
+ec_cols     BYTE    "The first extra credit I worked on was printing the array in columns of 10 instead of rows",0
+ec_recrs    BYTE    "The second extra credit I worked on was making the sort function recrusive. For this I chose to use bubble sort",0
+
+
+.code
+main PROC
+;INTRODUCTION------------------------------------------------------------------------
+    push    OFFSET welcome
+    push    OFFSET description
+    push    OFFSET ec_cols
+    push    OFFSET ec_recrs
+    call    Intro                               ;Intro function takes in the welcome and description and prints them
+
+    push    OFFSET size_promp                   ;This function gets the size of the array from the user
+    push    OFFSET arr_size
+    call    arrGetSize
+
+    push    OFFSET list
+    push    arr_size
+    call    fillArr                             ;This function fills an array with random numbers given an array and its size
+    call    Crlf
+
+;    push    OFFSET list
+;    push    arr_size
+;    push    OFFSET unsorted
+;    push    OFFSET space
+;    call    printArr                           ;This was the basic print statement to put them in rows
+;    call    Crlf
+
+    push    OFFSET list
+    push    arr_size
+    push    OFFSET space
+    push    OFFSET unsorted
+    call    printArrCol                         ;This function prints the array in rows given an array, its size, and if its sorted
+    call    Crlf
+
+;    push    OFFSET list
+;    push    arr_size
+;    call    arrSort                            ;This is the standard sort function which takes the array and the size as parameters
+
+    push    OFFSET list
+    push    arr_size
+    call    arrBubbleSort                       ;This is the recursive sort function which also just takes the array and its size
+
+;    push    OFFSET list
+;    push    arr_size
+;    push    OFFSET sorted
+;    push    OFFSET space
+;    call    printArr
+;    call    Crlf
+
+    push    OFFSET list
+    push    arr_size
+    push    OFFSET space
+    push    OFFSET sorted
+    call    printArrCol
+    call    Crlf
+
+    push    OFFSET list
+    push    arr_size
+    push    OFFSET calc_avg
+    push    OFFSET calc_medi
+    call    arrCalc                             ;This function calculates the median and the average of a sorted list given the list and its size
+    call    Crlf
+
+    exit
+
+main ENDP
+
+
+
+;INTRODUCTION PROCEDURE----------------------------------------------------------------
+;Description: Ths function prints out the introduction, instructions, and the extra credit done
+;Receives:  This function takes in the prompts it has to print out (Welcome, instruction, EC1, EC2)
+;Returns: Nothing
+;Preconditions: Must take in 4 valid address for strings before it is called
+;Registers Changed: EDX, EDP
+;Addressing Mode: Base-Indexed Addressing
+Intro PROC
+    push    edx                                 ;Saves old values
+    push    ebp
+    mov     ebp, esp
+    mov     edx, [ebp+24]                       ;Moves the two print statements into edx and prints them out
+    call    WriteString
+    call    crlf
+    mov     edx, [ebp+20]
+    call    WriteString
+    call    crlf
+    call    Crlf
+    mov     edx, [ebp+16]
+    call    WriteString
+    call    Crlf
+    mov     edx, [ebp+12]
+    call    WriteString
+    call    Crlf
+    pop     ebp
+    pop     edx
+    ret     16                                   ;resets the pointer to account for paramaters passed in 
+Intro ENDP
+
+;GET SIZE PROCEDURE--------------------------------------------------------------------
+;Description: Ths function gets the size of the array from the user
+;Receives: This function takes in the variable where the size will be stored and the prompt
+;Returns: updates a variable's contents
+;Preconditions: Must be given a variable and a prompt and the user must enter in a valid number
+;Registers Changed: EAX, EDX, EBX, EDP
+;Addressing Mode: Base-Indexed Addressing
+arrGetSize PROC
+    push    edx                                 ;Saves register values that will be used
+    push    eax
+    push    ebp
+    push    ebx
+    mov     ebp, esp
+    mov     ebx, [ebp+20]                       ;Moves the address of the arr_size variable into ebx
+check_loop:
+    mov     edx, [ebp+24]                       ;Prints the prompt to the user
+    call    WriteString
+    call    ReadInt                             ;Gets a size from the user
+    cmp     eax, MIN_INPUT                      ;Checks the user input to make sure that it is within the given bounds
+    jl      check_loop
+    cmp     eax, MAX_INPUT
+    jg      check_loop
+    mov     [ebx], eax                          ;Moves the verified value into the array_size variable
+
+    pop     ebx
+    pop     ebp
+    pop     eax
+    pop     edx
+    ret     8                                   ;Restores all of the values that were in the registers then returns for the parameters
+
+arrGetSize ENDP
+
+;FILL ARRAY PROCEDURE-------------------------------------------------------------------
+;Description: Ths function fills an array with random numbers between 100-999
+;Receives: This function takes in a list of a user chosen size and the size of the array (list, arr_size)
+;Returns: Updates the users array
+;Preconditions: Must take in an array with minimum size of 10 and the size of the array
+;Registers Changed: All the general purpose registers
+;Addressing Mode: Base-Indexed Addressing
+fillArr PROC
+    call    Randomize                           ;Seeds the random numbers
+    pushad                                      ;Saves all register values just to be safe.
+    mov     ebp, esp
+    mov     esi, [ebp+40]                       ;Moves the users array to esi
+    mov     ecx, [ebp+36]                       ;Moves arr_size into ecx
+    mov     edx, 0                              ;This is what I will use to index the items in the array
+run:
+    mov     eax, RAND_MAX                       ;Moves the max random number into eax
+    call    RandomRange                         ;Produces a random number 0-899
+    add     eax, RAND_MIN                       ;Add 100 to eax so the random nuber is now between 100-999
+    mov     [esi+edx], eax                      ;Moves the new random number into the array
+    add     edx, 4
+    loop    run
+
+    popad
+    ret     8
+fillArr ENDP
+
+;PRINT ARRAY-----------------------------------------------------------------------------
+;Description: Ths function prints out an array in rows of 10 
+;Receives:  This function takes in the array and the size of the array
+;Returns: Nothing just pritns out to the screen
+;Preconditions: Must take in a minimum 10 length array and its size
+;Registers Changed: All General Purpose registers
+;Addressing Mode: Base-Indexed Addressing
+printArr PROC
+    pushad
+    mov     ebp, esp
+    mov     esi, [ebp+48]                       ;Moves the array into esi
+    mov     ecx, [ebp+44]
+    mov     edx, [ebp+40]                       ;This is the prompt that says if the array is sorted or not
+    call    WriteString
+    mov     edx, [ebp+36]                       ;This is the constant spacing 
+
+    mov     ebx, 0                              ;This is used to keep track of how many numbers have been printed so that there are 10 a line
+    mov     edi, 0                              ;This is the indexing for the array
+print_loop:
+    push    edx                                 ;Saves the spacing so that edx can be used again later
+    mov     eax, [esi+edi]                      ;Prints out the value at the given index
+    call    writeDec
+    inc     ebx
+    call    WriteString                         ;Space - " "
+    mov     eax, ebx
+    mov     ebp, 10
+    cdq
+    div     ebp
+    cmp     edx, 0                              ;This checks to see how many values have been printed, ever 10 is a new row
+    jne     no_space
+    call    crlf
+no_space:
+    add     edi, 4                              ;Indexing increases to the next item
+    pop     edx                                 ;Spacing is returned
+    loop    print_loop
+    call    Crlf
+
+    popad
+    ret     16
+
+printArr ENDP
+
+;SORT ARRAY------------------------------------------------------------------------------
+;Description: Ths function sorts the array
+;Receives:  This function takes in the array and the size of the array
+;Returns: Nothing just updates the array
+;Preconditions: Must take in a minimum 10 length array and its size
+;Registers Changed: All General Purpose registers
+;Addressing Mode: Base-Indexed Addressing
+arrSort PROC
+    pushad
+    mov     ebp, esp
+    mov     edi, [ebp+40]
+    mov     ebx, [ebp+36]
+    mov     edx, 0                              ;index for comparing the first of the two values
+    mov     eax, 4                              ;index for comparing the second of the two values
+    dec     ebx                                 ;Loop runs one less time than it's size bc eax starts one value ahead
+    mov     ecx, ebx
+outter_loop:
+    push    edx                                 ;Saves the two indicies and ebx which will be used later
+    push    ecx
+    push    ebx
+    mov     ecx, ebx
+    dec     ecx                                 ;Inner loop runs one less time
+    mov     ebx, edx                            ;edx ---- i
+    add     ebx, eax                            ;ebx ---- j
+    inner_loop:
+        mov     ebp, [edi+edx]                  ;Moves arr[i] into ebp
+        cmp     ebp, [edi+ebx]                  ;compares arr[i] with arr[j] 
+        jg      in_order
+        mov     esi, [edi+ebx]                  ;If it is not in order then swap the two values
+        mov     [edi+ebx], ebp
+        mov     [edi+edx], esi
+    in_order:                                   ;Otherwise incrament the indicies and loop again to sort more
+        add     ebx, eax
+        loop    inner_loop
+    pop     ebx
+    pop     ecx
+    pop     edx
+    add     edx, eax                            ;Pops and updates the values for the outter loop
+    loop    outter_loop
+    popad
+    ret     8
+
+arrSort ENDP
+
+;CALCULATE VALUES------------------------------------------------------------------------------
+;Description: Ths function calculates the average and the median of a given list
+;Receives: This function takes in an array and the size of the array and two prompts for the median and average
+;Returns: Prints to the screen
+;Preconditions: Must take in a list and the size of the list
+;Registers Changed: All general purpose registers
+;Addressing Mode: Base-Indexed Addressing
+arrCalc PROC
+    pushad                                      ;Saves old values before procedure starts
+    mov     ebp, esp
+    mov     esi, [ebp+48]                       ;Moves the list into esi
+    mov     ecx, [ebp+44]                       ;Moves the count into ecx
+    mov     edx, [ebp+40]                       ;Moves the two print statements to their directories
+    mov     ebx, [ebp+36]
+    call    WriteString
+
+    cdq
+    mov     edi, 2                              ;Checks if the arr_size is even or odd
+    mov     eax, ecx
+    div     edi
+    push    eax                                 ;Saves the index of the middle value as well as if it is even or odd
+    push    edx
+
+    mov     eax, 0
+    mov     edi, 0
+    push    ecx
+sum_loop:
+    add     eax, [esi+edi]                      ;This loop calculates the sum of the array entries and stores it in eax
+    add     edi, 4
+    loop    sum_loop
+
+    pop     ecx
+    cdq
+    div     ecx                                 ;Divide the sum by the number of entries to find the average
+    call    WriteInt
+    mov     edx, ebx
+    call    WriteString
+    pop     edx
+    cmp     edx, 1                              ;Even and odd entry medians are calculated differently so its checked
+    je      odd_entries
+
+    pop     eax                                 ;This section gets the address of the two middle values and finds the average of the two
+    dec     eax
+    mov     ebx, 4
+    mul     ebx
+    mov     edi, [esi+eax]
+    add     eax, 4
+    add     edi, [esi+eax]
+    mov     eax, edi
+    mov     ecx, 2
+    div     ecx
+    jmp     print_avg
+
+odd_entries:
+    pop     ebx                                 ;Register managment. Pushed a value for the even numbers so have to account for it
+    mov     eax, ecx
+    dec     eax
+    mov     ecx, 2                              ;Gets the address of the middle value
+    mul     ecx
+    mov     ebx, [esi+eax]
+    mov     eax, ebx
+print_avg:
+    call    WriteInt
+
+    popad
+    ret     16
+arrCalc ENDP
+
+;RECURSIVE SORTING-----------------------------------------------------------------------------
+;Description: Ths function sorts the array recursively  using BubbleSort
+;Receives:  This function takes in the array and the size of the array
+;Returns: Nothing just updates the array
+;Preconditions: Must take in a minimum 10 length array and its size
+;Registers Changed: All General Purpose registers
+;Addressing Mode: Base-Indexed Addressing
+arrBubbleSort PROC
+    pushad
+    mov     ebp, esp
+    mov     esi, [ebp+40]
+    mov     ecx, [ebp+36]
+
+    cmp     ecx, 1                                  ;Base case checks to see if the list has been sorted
+    je      done
+
+    push    ecx                                     ;Saves the number of elements in the array for when it makes the recursive call
+    dec     ecx                                     ;Loop runs for one less than the size of the array becuase it starts comparing with the value ahead
+    mov     eax, 0
+    mov     edx, 4
+sort_loop:
+    push    ecx                                     ;Each time this procedure is called it bubbles the smallest value to the back 
+    mov     ebx, [esi+eax]
+    mov     edi, [esi+edx]
+    cmp     ebx, edi
+    jg      in_order
+    mov     ecx, edi                                ;Swaps the values if they are out of order
+    mov     [esi+edx], ebx
+    mov     [esi+eax], ecx
+
+in_order:
+    add     eax, 4                                  ;Updates indicies to look at next values
+    add     edx, 4
+    pop     ecx                                     ;Gets the saved counter variable to check if its time to really quit loop
+    loop    sort_loop
+lop_done:
+    pop     ecx
+    dec     ecx
+    push    esi                                     ;Recursive call sends the array and the size-1
+    push    ecx
+    call    arrBubbleSort
+
+done:
+    popad
+    ret     8
+
+arrBubbleSort ENDP
+
+
+;PRINT IN COLOUMNS------------------------------------------------------------------------------
+;Description: Ths function prints out an array in columns of 10 
+;Receives:  This function takes in the array and the size of the array
+;Returns: Nothing just pritns out to the screen
+;Preconditions: Must take in a minimum 10 length array and its size
+;Registers Changed: All General Purpose registers
+;Addressing Mode: Base-Indexed Addressing
+printArrCol PROC
+    pushad
+    mov     ebp, esp
+    mov     esi, [ebp+48]
+    mov     ebx, [ebp+44]
+    mov     eax, [ebp+40]
+    mov     edx, [ebp+36]
+    call    WriteString                                 ;Prints out if its sorted or unsorted
+    call    Crlf
+
+    mov     ecx, 10                                     ;Each column will have 10 elements so the main loop runs 10 times
+    mov     edi, 0
+    mov     edx, 1
+out_loop:
+    push    eax
+    push    edi
+    push    edx
+    push    ecx
+    mov     ecx, eax                                    ;ecx now holds the spacing string
+    inner_loop2:
+        mov     eax, [esi+edi]
+        call    WriteDec
+        push    edx
+        mov     edx, ecx
+        call    WriteString
+        pop     edx
+        add     edx, 10
+        cmp     ebx, edx                                ;Sees if there is a value in the next column on the same row
+        jl      new_line                                ;If there is loop and print it otherwise, go to the next row
+        add     edi, 40
+        jmp     inner_loop2
+
+new_line:
+    call    crlf
+    pop     ecx
+    pop     edx
+    pop     edi
+    pop     eax
+    add     edi, 4                                      ;First value of each row so EDI acts a base index for each row
+    add     edx, 1
+
+    loop    out_loop
+    popad
+    ret     16
+
+printArrCol ENDP
+
+END main
